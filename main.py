@@ -108,7 +108,7 @@ def Run_Analysis(args):
 
     # Load the models: Second class specific model
     to_forget_model = UNet(config)
-    to_forget_model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_only_planes.pt')['net'])
+    to_forget_model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_only_{cifar10_classes[args.to_remove_class]}s.pt')['net'])
     to_forget_model.to(args.device)
     to_forget_model.eval()
     
