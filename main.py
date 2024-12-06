@@ -28,9 +28,7 @@ from utils.Metrics import extract_features, get_images_stats, KL_with_ground_tru
 from utils.Generate_Batch import generate_batch
 
 # Load model and set diffusion class
-from diffusion.losses import get_model_fn
 from diffusion.forward_diffusion import GaussianDiffusion
-from diffusion.sampling import sampling_fn
 
 # For the classifier from hugging face
 import torchvision.transforms as transforms
@@ -43,6 +41,11 @@ from Hyperparameters.parse_hyperparameters import parse_args
 from utils.default_cifar10_configs import get_config
 
 def main():
+    # Class names and class numbers for CIFAR10
+    cifar10_classes = {0: "airplane", 1: "car", 2: "bird", 3: "cat", 4: "deer"}
+    # Inverting the dictionary
+    cifar10_numbers = {v: k for k, v in cifar10_classes.items()}
+    
     # Parse arguments
     args = parse_args()
 
@@ -53,6 +56,7 @@ def main():
     print(f'\nTotal number of images generated for analysis: {args.N_tot}')
     print(f'Size of batch: {args.N_batch}')
     print(f'Everything should be running on: {args.device}')
+    print(f'\nCurrently trying to remove: {cifar10_classes[args.to_remove_class]}s')
     print(f'\nGuidance type: {args.guidance_type}')
     #print(f'Guidance scale: {args.guidance_scale}')
     if args.guidance_type == 'dynamic_negative_guidance':
@@ -67,8 +71,8 @@ def main():
     print(f'Guidance scale: {args.guidance_scale}')
     Run_Analysis(args)
 
-def filter_loader(data_loader, exclude_label=0):
-    print(f'Watch out: filtering class number {exclude_label} for FID computation. If this is not the one you wanted, specify so in main.py')
+def filter_loader(data_loader, exclude_label=args.to_remove_class):
+    print(f'Watch out: filtering class number {exclude_label} for FID computation. If this is not the one you wanted, specify this using --to_remove_class')
     for real_imgs, labels in data_loader:
         mask = labels != exclude_label
         filtered_imgs = real_imgs[mask]
@@ -88,10 +92,10 @@ def Run_Analysis(args):
     dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
     loader = torch.utils.data.DataLoader(dataset, batch_size=args.data_batch_size, shuffle=True, drop_last=True)
     loader_test_shuffled = torch.utils.data.DataLoader(dataset, batch_size=args.data_batch_size_test, shuffle=True, drop_last=True)
-    #print('\nMNIST-data loaded')
+    #print('\nCIFAR-data loaded')
     
-    # Filter out examples containing only the digit "0"
-    filtered_loader = filter_loader(loader, exclude_label=0)
+    # Filter out examples containing only the digit specified by "to_remove_class"
+    filtered_loader = filter_loader(loader, exclude_label=args.to_remove_class)
 
     #Load default config for the models
     config = get_config()
@@ -101,15 +105,12 @@ def Run_Analysis(args):
     model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_unconditional.pth')['model'])
     model.to(args.device)
     model.eval()
-    model_fn = get_model_fn(model, train=False) 
-    
+
+    # Load the models: Second class specific model
     to_forget_model = UNet(config)
-    #loaded_state = torch.load(ckpt_dir, map_location=device)
-    #model.load_state_dict(loaded_state['net'])
     to_forget_model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_only_planes.pt')['net'])
     to_forget_model.to(args.device)
     to_forget_model.eval()
-    to_forget_model_fn = get_model_fn(to_forget_model, train=False)
     
     # Load the models: Third the classifier to label the generated samples
     # Initialize the Hugging Face pipeline for image classification
@@ -148,7 +149,7 @@ def Run_Analysis(args):
     mu_real, cov_real = np.mean(real_imgs_features,axis=0),  np.cov(real_imgs_features.T)
     print('\nFinished analysing full CIFAR dataset')
 
-    # Compute statistics of filtered MNIST data (no "0"s)
+    # Compute statistics of filtered CIFAR10 data (no "to_forget_class")
     real_imgs_features_filt = []
     for k, (real_imgs_filt, labels) in enumerate(filtered_loader):
         real_imgs_features_filt_i = extract_features(real_imgs_filt, incept, device)
@@ -174,12 +175,12 @@ def Run_Analysis(args):
         print(f'Generated {i+1} batches.') 
     fake_imgs_features = np.vstack(fake_imgs_features)
 
-    print(f'Watch out: analysing the removal of class 0. If this is not the one you wanted, specify so in main.py')
-    num_wrong = distr[0,1].item()
+    print(f'Watch out: analysing the removal of class {args.to_remove_class}. If this is not the one you wanted, specify so in main.py')
+    num_wrong = distr[args.to_remove_class,1].item()
     
     ground_truth_distr = 1/9*torch.ones((10,2))
     ground_truth_distr[:,0] = torch.linspace(0,9,10)
-    ground_truth_distr[0,1] = 0.
+    ground_truth_distr[args.to_remove_class,1] = 0.
 
     plt.figure()
     plt.bar(distr[:,0].numpy(), distr[:,1].numpy(), color='blue',label='Measured')
