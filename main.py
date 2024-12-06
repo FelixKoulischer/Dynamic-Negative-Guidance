@@ -15,9 +15,6 @@ import random
 import csv
 import os
 
-# Import the hyperparameter
-### TO WRITE!!!
-
 # Import the useful models 
 from models.ddpm import UNet
 from models.Inception import InceptionV3
@@ -58,7 +55,6 @@ def main():
     print(f'Everything should be running on: {args.device}')
     print(f'\nCurrently trying to remove: {cifar10_classes[args.to_remove_class]}s')
     print(f'\nGuidance type: {args.guidance_type}')
-    #print(f'Guidance scale: {args.guidance_scale}')
     if args.guidance_type == 'dynamic_negative_guidance':
         print(f'Prior: {args.prior}')
         print(f'Temp: {args.Temp}')
@@ -83,7 +79,7 @@ def Run_Analysis(args):
     # Load the diffusion module containg the forward process
     diffusion = GaussianDiffusion(beta_min = args.beta_min, beta_max = args.beta_max, rho= args.rho, T=args.T)  # defines the diffusion process
 
-    # Load the required data (in this case MNIST)
+    # Load the required data (in this case CIFAR)
     transform = transforms.Compose([
     transforms.Resize((32, 32)),          # Resize the image to 32x32
     transforms.ToTensor(),                # Convert the image to tensor
@@ -158,7 +154,7 @@ def Run_Analysis(args):
     mu_filt, cov_filt = np.mean(real_imgs_features_filt,axis=0),  np.cov(real_imgs_features_filt.T)
     print('\nFinished analysing filtered CIFAR dataset (without class "0")')
     
-    # Compute statistics of generated MNIST data
+    # Compute statistics of generated CIFAR data
     fake_imgs_features = []
     distr, label_list = torch.zeros((10,2)), torch.tensor([0,1,2,3,4,5,6,7,8,9])
     num_batches_needed = N_tot//N_batch
