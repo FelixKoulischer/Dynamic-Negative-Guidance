@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument('--N_tot', type=int, default=2048, help='Total number of images generated')
     parser.add_argument('--N_batch', type=int, default=512, help='Batch size of images generated')
     parser.add_argument('--guidance_type', type=str, default='negative_prompting', help='Guidance type to avoid forbidden regions. Can be set to "negative_prompting, "safe_latent_diffusion" or "negative_guidance" (ours)')
+    parser.add_argument('--to_remove_class', type=int, default=0,help='The CIFAR10 class number that should be removed using the negative guidance scheme (0 = airplane, 1 = automobile, ...)')
     parser.add_argument('--guidance_scale', type=float, default=1., help='The guidance scale $\lambda$.')
 
     # Define hyperparameters that need to be passed if using SFD
