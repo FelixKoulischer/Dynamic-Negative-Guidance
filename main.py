@@ -55,7 +55,7 @@ def main():
     print(f'Everything should be running on: {args.device}')
     print(f'\nGuidance type: {args.guidance_type}')
     #print(f'Guidance scale: {args.guidance_scale}')
-    if args.guidance_type == 'negative_guidance':
+    if args.guidance_type == 'dynamic_negative_guidance':
         print(f'Prior: {args.prior}')
         print(f'Temp: {args.Temp}')
     if args.guidance_type == 'safe_latent_diffusion':
@@ -191,11 +191,11 @@ def Run_Analysis(args):
     plt.title(f' Distribution of generated images with lambda = {guidance_scale}')
     plt.ylim(0,1)
     if guidance_type == 'negative_prompting':
-        plt.savefig(f'Results/Figures/NP/Distribution_negative_prompt_lam_{guidance_scale}.png')
+        plt.savefig(f'Results/Figures/NP/Distribution_NP_lam_{guidance_scale}.png')
     if guidance_type == 'safe_latent_diffusion':
-        plt.savefig(f'Results/Figures/SLD/Distribution_safe_latent_diffusion_lam_{guidance_scale}_thresh_{threshold}_ss_{s_s}_betam_{beta_m}_sm_{s_m}.png')
-    if guidance_type == 'negative_guidance':
-        plt.savefig(f'Results/Figures/NG/Distribution_negative_guidance_lam_{guidance_scale}_prior_{prior}_Temp_{Temp}.png')
+        plt.savefig(f'Results/Figures/SLD/Distribution_SLD_lam_{guidance_scale}_thresh_{threshold}_ss_{s_s}_betam_{beta_m}_sm_{s_m}.png')
+    if guidance_type == 'dynamic_negative_guidance':
+        plt.savefig(f'Results/Figures/DNG/Distribution_DNG_lam_{guidance_scale}_prior_{prior}_Temp_{Temp}.png')
     plt.close()
     
     KL_div = KL_with_ground_truth(ground_truth_distr,distr)
@@ -216,7 +216,7 @@ def Run_Analysis(args):
     if guidance_type == 'safe_latent_diffusion':
         column_labels = ['Number of generated samples','Initial seed','Guidance scale', 'Threshold','s_s', 'beta_m', 's_m', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
         row = [args.N_tot,args.seed,args.guidance_scale, args.threshold, args.s_s, args.beta_m, args.s_m, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
-    if guidance_type == 'negative_guidance':
+    if guidance_type == 'dynamic_negative_guidance':
         column_labels = ['Number of generated samples','Initial seed','Guidance scale', 'Prior', 'Temp', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
         row = [args.N_tot,args.seed,args.guidance_scale, args.prior, args.Temp, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
     
