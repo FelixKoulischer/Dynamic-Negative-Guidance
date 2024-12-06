@@ -7,8 +7,8 @@ After downloading, place the `.pt` file in the `models/` directory.
 
 ## Description:
 
-Images are generated from 'utils/Generate_Batch.py'.
-The posterior is computed iteratively using the 'compute_posterior_DNG(...)' function present in 'Generate_Batch.py' (Alg. 1)
+Images are generated from `utils/Generate_Batch.py`.
+The posterior is computed iteratively using the `compute_posterior_DNG(...)` function present in `Generate_Batch.py` (Alg. 1)
 For numerical stability the posterior is clamped between p_min and p_max.
 
 
