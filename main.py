@@ -63,15 +63,12 @@ def main():
         print(f's_s: {args.s_s}')
         print(f'beta_m: {args.beta_m}')
         print(f's_m: {args.s_m}')
-
-    #Run_Analysis(args)
-    guidance_scales = [4.5] #[0.2,0.3,.4,0.5,0.6,0.7]
-    for guidance_scale in guidance_scales:
-        args.guidance_scale = guidance_scale
-        print(f'Guidance scale: {args.guidance_scale}')
-        Run_Analysis(args)
+        
+    print(f'Guidance scale: {args.guidance_scale}')
+    Run_Analysis(args)
 
 def filter_loader(data_loader, exclude_label=0):
+    print(f'Watch out: filtering class number {exclude_label} for FID computation. If this is not the one you wanted, specify so in main.py')
     for real_imgs, labels in data_loader:
         mask = labels != exclude_label
         filtered_imgs = real_imgs[mask]
@@ -121,9 +118,9 @@ def Run_Analysis(args):
     pretrained_classifier.to(args.device)
     # Define the preprocessing pipeline
     preprocess = transforms.Compose([
-        transforms.Resize((224, 224)),  # Resize images to 224x224
+        transforms.Resize((224, 224)),   # Resize images to 224x224
         #transforms.ToPILImage(),        # Convert tensors to PIL images
-        transforms.ToTensor(),          # Convert PIL images to tensors
+        transforms.ToTensor(),           # Convert PIL images to tensors
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [0, 1]
     ])
         
@@ -149,7 +146,7 @@ def Run_Analysis(args):
         real_imgs_features.append(real_imgs_features_i.cpu().numpy())
     real_imgs_features = np.vstack(real_imgs_features)
     mu_real, cov_real = np.mean(real_imgs_features,axis=0),  np.cov(real_imgs_features.T)
-    print('\nFinished analysing full MNIST dataset')
+    print('\nFinished analysing full CIFAR dataset')
 
     # Compute statistics of filtered MNIST data (no "0"s)
     real_imgs_features_filt = []
@@ -158,7 +155,7 @@ def Run_Analysis(args):
         real_imgs_features_filt.append(real_imgs_features_filt_i.cpu().numpy())
     real_imgs_features_filt = np.vstack(real_imgs_features_filt)
     mu_filt, cov_filt = np.mean(real_imgs_features_filt,axis=0),  np.cov(real_imgs_features_filt.T)
-    print('\nFinished analysing filtered MNIST dataset (without "0"s)')
+    print('\nFinished analysing filtered CIFAR dataset (without class "0")')
     
     # Compute statistics of generated MNIST data
     fake_imgs_features = []
@@ -176,7 +173,8 @@ def Run_Analysis(args):
         torch.cuda.empty_cache()
         print(f'Generated {i+1} batches.') 
     fake_imgs_features = np.vstack(fake_imgs_features)
-    
+
+    print(f'Watch out: analysing the removal of class 0. If this is not the one you wanted, specify so in main.py')
     num_wrong = distr[0,1].item()
     
     ground_truth_distr = 1/9*torch.ones((10,2))
