@@ -12,4 +12,4 @@ The posterior is computed iteratively using the `compute_posterior_DNG(...)` fun
 
 
 ## Example run:
-python main.py --N_tot 32 --N_batch 32 --guidance_type 'dynamic_negative_guidance' --guidance_scale --5. --prior 0.01 --Temp 0.2 --offset 2e-4 --p_max 0.8
+python main.py --N_tot 32 --N_batch 32 --to_remove_class 0 --guidance_type 'dynamic_negative_guidance' --guidance_scale --5. --prior 0.01 --Temp 0.2 --offset 2e-4 --p_max 0.8
