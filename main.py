@@ -20,9 +20,8 @@ from models.ddpm import UNet
 from models.Inception import InceptionV3
 
 # Import all the useful features
-from utils.Generate_Batch import generate_batch
+from utils.Generate_Batch_pretrained import generate_batch
 from utils.Metrics import extract_features, get_images_stats, KL_with_ground_truth, KL_with_uniform, calculate_frechet_distance, obtain_generated_distribution
-from utils.Generate_Batch import generate_batch
 
 # Load model and set diffusion class
 from diffusion.forward_diffusion import GaussianDiffusion
@@ -30,6 +29,7 @@ from diffusion.forward_diffusion import GaussianDiffusion
 # For the classifier from hugging face
 import torchvision.transforms as transforms
 from transformers import pipeline
+from diffusers import DiffusionPipeline
 
 # Load the hyperparameters
 from Hyperparameters.parse_hyperparameters import parse_args
@@ -67,7 +67,8 @@ def main():
     print(f'Guidance scale: {args.guidance_scale}')
     Run_Analysis(args)
 
-def filter_loader(data_loader, exclude_label=args.to_remove_class):
+def filter_loader(data_loader, args):
+    exclude_label=args.to_remove_class
     print(f'Watch out: filtering class number {exclude_label} for FID computation. If this is not the one you wanted, specify this using --to_remove_class')
     for real_imgs, labels in data_loader:
         mask = labels != exclude_label
@@ -76,6 +77,11 @@ def filter_loader(data_loader, exclude_label=args.to_remove_class):
         yield filtered_imgs, filtered_labels
 
 def Run_Analysis(args):
+    # Class names and class numbers for CIFAR10
+    cifar10_classes = {0: "airplane", 1: "car", 2: "bird", 3: "cat", 4: "deer"}
+    # Inverting the dictionary
+    cifar10_numbers = {v: k for k, v in cifar10_classes.items()}
+    
     # Load the diffusion module containg the forward process
     diffusion = GaussianDiffusion(beta_min = args.beta_min, beta_max = args.beta_max, rho= args.rho, T=args.T)  # defines the diffusion process
 
@@ -91,19 +97,24 @@ def Run_Analysis(args):
     #print('\nCIFAR-data loaded')
     
     # Filter out examples containing only the digit specified by "to_remove_class"
-    filtered_loader = filter_loader(loader, exclude_label=args.to_remove_class)
+    filtered_loader = filter_loader(loader, args)
 
     #Load default config for the models
     config = get_config()
 
     # Load the models: First unconditional model
-    model = UNet(config)
-    model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_unconditional.pth')['model'])
-    model.to(args.device)
-    model.eval()
+    #model = UNet(config)
+    #model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_unconditional.pth')['model'])
+    #model.to(args.device)
+    #model.eval()
+    # Load the pretrained diffusion model pipeline
+    pretrained_pipeline = DiffusionPipeline.from_pretrained("google/ddpm-cifar10-32")
+    pretrained_pipeline.to(args.device)
+    model = pretrained_pipeline.unet
 
     # Load the models: Second class specific model
     to_forget_model = UNet(config)
+    print(f'models/checkpoint_CIFAR10_only_{cifar10_classes[args.to_remove_class]}s.pt')
     to_forget_model.load_state_dict(torch.load(f'models/checkpoint_CIFAR10_only_{cifar10_classes[args.to_remove_class]}s.pt')['net'])
     to_forget_model.to(args.device)
     to_forget_model.eval()
@@ -141,6 +152,8 @@ def Run_Analysis(args):
     for k, (real_imgs, labels) in enumerate(loader):
         real_imgs_features_i = extract_features(real_imgs, incept, device)
         real_imgs_features.append(real_imgs_features_i.cpu().numpy())
+        print('WATCH OUT LOOP BREAK!!!')
+        break 
     real_imgs_features = np.vstack(real_imgs_features)
     mu_real, cov_real = np.mean(real_imgs_features,axis=0),  np.cov(real_imgs_features.T)
     print('\nFinished analysing full CIFAR dataset')
@@ -150,9 +163,11 @@ def Run_Analysis(args):
     for k, (real_imgs_filt, labels) in enumerate(filtered_loader):
         real_imgs_features_filt_i = extract_features(real_imgs_filt, incept, device)
         real_imgs_features_filt.append(real_imgs_features_filt_i.cpu().numpy())
+        print('WATCH OUT LOOP BREAK!!!')
+        break 
     real_imgs_features_filt = np.vstack(real_imgs_features_filt)
     mu_filt, cov_filt = np.mean(real_imgs_features_filt,axis=0),  np.cov(real_imgs_features_filt.T)
-    print('\nFinished analysing filtered CIFAR dataset (without class "0")')
+    print(f'\nFinished analysing filtered CIFAR dataset (without class "{args.to_remove_class}")')
     
     # Compute statistics of generated CIFAR data
     fake_imgs_features = []
@@ -171,7 +186,7 @@ def Run_Analysis(args):
         print(f'Generated {i+1} batches.') 
     fake_imgs_features = np.vstack(fake_imgs_features)
 
-    print(f'Watch out: analysing the removal of class {args.to_remove_class}. If this is not the one you wanted, specify so in main.py')
+    print(f'Analysing the removal of class {args.to_remove_class}.')
     num_wrong = distr[args.to_remove_class,1].item()
     
     ground_truth_distr = 1/9*torch.ones((10,2))
@@ -188,11 +203,11 @@ def Run_Analysis(args):
     plt.title(f' Distribution of generated images with lambda = {guidance_scale}')
     plt.ylim(0,1)
     if guidance_type == 'negative_prompting':
-        plt.savefig(f'Results/Figures/NP/Distribution_NP_lam_{guidance_scale}.png')
+        plt.savefig(f'Results/Figures/NP/Distribution_NP_removing_{args.to_remove_class}_lam_{guidance_scale}.png')
     if guidance_type == 'safe_latent_diffusion':
-        plt.savefig(f'Results/Figures/SLD/Distribution_SLD_lam_{guidance_scale}_thresh_{threshold}_ss_{s_s}_betam_{beta_m}_sm_{s_m}.png')
+        plt.savefig(f'Results/Figures/SLD/Distribution_SLD_removing_{args.to_remove_class}_lam_{guidance_scale}_thresh_{threshold}_ss_{s_s}_betam_{beta_m}_sm_{s_m}.png')
     if guidance_type == 'dynamic_negative_guidance':
-        plt.savefig(f'Results/Figures/DNG/Distribution_DNG_lam_{guidance_scale}_prior_{prior}_Temp_{Temp}.png')
+        plt.savefig(f'Results/Figures/DNG/Distribution_DNG_removing_{args.to_remove_class}_lam_{guidance_scale}_prior_{prior}_Temp_{Temp}.png')
     plt.close()
     
     KL_div = KL_with_ground_truth(ground_truth_distr,distr)
@@ -208,14 +223,14 @@ def Run_Analysis(args):
     print('     - KL-div             : ', KL_div)
     
     if guidance_type == 'negative_prompting':
-        column_labels = ['Number of generated samples','Initial seed','Guidance scale', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
-        row = [args.N_tot,args.seed,args.guidance_scale, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
+        column_labels = ['To remove class','Number of generated samples','Initial seed','Guidance scale', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
+        row = [args.to_remove_class,args.N_tot,args.seed,args.guidance_scale, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
     if guidance_type == 'safe_latent_diffusion':
-        column_labels = ['Number of generated samples','Initial seed','Guidance scale', 'Threshold','s_s', 'beta_m', 's_m', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
-        row = [args.N_tot,args.seed,args.guidance_scale, args.threshold, args.s_s, args.beta_m, args.s_m, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
+        column_labels = ['To remove class','Number of generated samples','Initial seed','Guidance scale', 'Threshold','s_s', 'beta_m', 's_m', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
+        row = [args.to_remove_class,args.N_tot,args.seed,args.guidance_scale, args.threshold, args.s_s, args.beta_m, args.s_m, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
     if guidance_type == 'dynamic_negative_guidance':
-        column_labels = ['Number of generated samples','Initial seed','Guidance scale', 'Prior', 'Temp', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
-        row = [args.N_tot,args.seed,args.guidance_scale, args.prior, args.Temp, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
+        column_labels = ['To remove class','Number of generated samples','Initial seed','Guidance scale', 'Prior', 'Temp', 'Number of forbidden images (%)', 'KL divergence to ground truth', 'KL divergence to uniform','FID (without zeros)','FID (with zeros)']
+        row = [args.to_remove_class,args.N_tot,args.seed,args.guidance_scale, args.prior, args.Temp, round(num_wrong,4), round(KL_div,4), round(KL_div_uniform,4), round(fid_filt,4), round(fid,4)]
     
     file_name = f'Results/CSVs/{guidance_type}.csv'
     with open(file_name, 'a', newline='') as csvfile:
