@@ -5,6 +5,9 @@ The pretrained model weights can be downloaded from [Google Drive](https://drive
 
 After downloading, place the `.pt` file in the `models/` directory.
 
+The training code for these models is availble at https://github.com/gabrielraya/ddpm-mnist.git
+The repository follows a similar structure to the previously mentioned one.
+
 ## Description:
 
 Images are generated from `utils/Generate_Batch.py`.
