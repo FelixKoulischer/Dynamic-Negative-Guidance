@@ -152,8 +152,6 @@ def Run_Analysis(args):
     for k, (real_imgs, labels) in enumerate(loader):
         real_imgs_features_i = extract_features(real_imgs, incept, device)
         real_imgs_features.append(real_imgs_features_i.cpu().numpy())
-        print('WATCH OUT LOOP BREAK!!!')
-        break 
     real_imgs_features = np.vstack(real_imgs_features)
     mu_real, cov_real = np.mean(real_imgs_features,axis=0),  np.cov(real_imgs_features.T)
     print('\nFinished analysing full CIFAR dataset')
@@ -163,8 +161,6 @@ def Run_Analysis(args):
     for k, (real_imgs_filt, labels) in enumerate(filtered_loader):
         real_imgs_features_filt_i = extract_features(real_imgs_filt, incept, device)
         real_imgs_features_filt.append(real_imgs_features_filt_i.cpu().numpy())
-        print('WATCH OUT LOOP BREAK!!!')
-        break 
     real_imgs_features_filt = np.vstack(real_imgs_features_filt)
     mu_filt, cov_filt = np.mean(real_imgs_features_filt,axis=0),  np.cov(real_imgs_features_filt.T)
     print(f'\nFinished analysing filtered CIFAR dataset (without class "{args.to_remove_class}")')
